@@ -67,7 +67,10 @@ util.AddNetworkString("StigRoleOverlayCreateOverlay")
 util.AddNetworkString("StigRoleOverlayEnd")
 
 hook.Add("TTTBeginRound", "StigRoleOverlayBegin", function()
-    local ROLE_GLITCH = ROLE_GLITCH or -1
+    if CR_VERSION then
+        SetGlobalInt("ttt_lootgoblin_announce", GetConVar("ttt_lootgoblin_announce"):GetInt())
+        SetGlobalInt("ttt_lootgoblin_notify_mode", GetConVar("ttt_lootgoblin_notify_mode"):GetInt())
+    end
 
     -- Sets flags on players using randomat functions only available on the server
     for _, ply in ipairs(GetAlivePlayers()) do
@@ -81,7 +84,7 @@ hook.Add("TTTBeginRound", "StigRoleOverlayBegin", function()
             ply:SetNWBool("StigRoleOverlayIsDetectiveLike", true)
         elseif IsJesterTeam(ply) then
             ply:SetNWBool("StigRoleOverlayJester", true)
-        elseif IsTraitorTeam(ply) or (ROLE_GLITCH and ply:GetRole() == ROLE_GLITCH) then
+        elseif IsTraitorTeam(ply) or ply.IsGlitch and ply:IsGlitch() then
             ply:SetNWBool("StigRoleOverlayTraitor", true)
         end
 
@@ -90,17 +93,35 @@ hook.Add("TTTBeginRound", "StigRoleOverlayBegin", function()
         end
     end
 
-    -- Reveals the role of a player when a corpse is searched
-    hook.Add("TTTCanIdentifyCorpse", "StigRoleOverlayCorpseSearch", function(_, ragdoll)
-        local ply = CORPSE.GetPlayer(ragdoll)
-        ply:SetNWInt("StigRoleOverlayScoreboardRoleRevealed", ragdoll.was_role)
-    end)
-
-    -- Starts fading in the role overlay and displays the event's name without making the randomat alert sound
+    -- Starts fading in the role overlay
     timer.Create("StigRoleOverlayDrawOverlay", 3.031, 1, function()
         net.Start("StigRoleOverlayCreateOverlay")
         net.Broadcast()
     end)
+end)
+
+-- Reveals the role of a player when a corpse is searched
+hook.Add("TTTBodyFound", "StigRoleOverlayCorpseSearch", function(_, deadply, rag)
+    -- If the dead player has disconnected, they won't be on the scoreboard, so skip them
+    if not IsPlayer(deadply) then return end
+    -- Get the role of the dead player from the ragdoll itself so artificially created ragdolls like the dead ringer aren't given away
+    deadply:SetNWBool("StigRoleOverlayBodyFound", true)
+end)
+
+-- Reveals the role of a player when a corpse is searched
+hook.Add("TTTCanIdentifyCorpse", "StigRoleOverlayCorpseSearch", function(_, ragdoll)
+    local ply = CORPSE.GetPlayer(ragdoll)
+    -- If the dead player has disconnected, they won't be on the scoreboard, so skip them
+    if not IsPlayer(ply) then return end
+    ply:SetNWInt("StigRoleOverlayScoreboardRoleRevealed", ragdoll.was_role)
+end)
+
+-- Reveals the loot goblin's death to everyone if it is announced
+hook.Add("PostPlayerDeath", "StigRoleOverlayDeath", function(ply)
+    if ply.IsLootGoblin and ply:IsLootGoblin() and ply:IsRoleActive() and GetGlobalInt("ttt_lootgoblin_notify_mode") == 4 then
+        ply:SetNWBool("StigRoleOverlayBodyFound", true)
+        ply:SetNWInt("StigRoleOverlayScoreboardRoleRevealed", ply:GetRole())
+    end
 end)
 
 hook.Add("TTTEndRound", "StigRoleOverlayEnd", function()
@@ -115,7 +136,8 @@ hook.Add("TTTEndRound", "StigRoleOverlayEnd", function()
         ply:SetNWBool("StigRoleOverlayIsGoodDetectiveLike", false)
         ply:SetNWBool("StigRoleOverlayJester", false)
         ply:SetNWBool("StigRoleOverlayTraitor", false)
-        ply:SetNWBool("StigRoleOverlayScoreboardRoleRevealed", -1)
+        ply:SetNWInt("StigRoleOverlayScoreboardRoleRevealed", -1)
+        ply:SetNWBool("StigRoleOverlayBodyFound", false)
     end
 
     SetGlobalBool("StigRoleOverlayGlitchExists", false)

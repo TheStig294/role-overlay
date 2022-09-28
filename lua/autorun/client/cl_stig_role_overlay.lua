@@ -99,8 +99,6 @@ net.Receive("StigRoleOverlayCreateOverlay", function()
         alpha = alpha + 0.01
     end)
 
-    local ROLE_GLITCH = ROLE_GLITCH or -1
-
     hook.Add("DrawOverlay", "StigRoleOverlayDrawNameOverlay", function()
         if not overlayActive then return end
         surface.SetAlphaMultiplier(alpha)
@@ -110,12 +108,14 @@ net.Receive("StigRoleOverlayCreateOverlay", function()
             local roleColour = defaultColour
             local iconRole
 
-            -- Reveal yourself, searched players, and detectives (when their roles aren't hidden) to everyone
-            if ply == LocalPlayer() or ply:GetNWInt("StigRoleOverlayScoreboardRoleRevealed", -1) ~= -1 or (ply:GetNWBool("StigRoleOverlayIsGoodDetectiveLike") and GetGlobalInt("ttt_detective_hide_special_mode", 0) == 0) then
+            -- Reveal yourself, searched players, detectives (when their roles aren't hidden) to everyone, loot goblins (when they are shown to everyone), revealed turncoats and revealed beggars
+            if ply == LocalPlayer() or ply:GetNWInt("StigRoleOverlayScoreboardRoleRevealed", -1) ~= -1 or ply:GetNWBool("StigRoleOverlayIsGoodDetectiveLike") or (ply.IsLootGoblin and ply:IsLootGoblin() and ply:IsRoleActive() and GetGlobalInt("ttt_lootgoblin_announce") == 4) or (ply.IsTurncoat and ply:IsTurncoat() and ply:IsTraitorTeam()) or ply.IsBeggar and ply:IsBeggar() and ply:ShouldRevealBeggar() then
                 local role = ply:GetRole()
 
                 if ply:GetNWInt("StigRoleOverlayScoreboardRoleRevealed", -1) ~= -1 then
                     role = ply:GetNWInt("StigRoleOverlayScoreboardRoleRevealed", -1)
+                elseif ply:GetNWBool("StigRoleOverlayIsGoodDetectiveLike") and GetGlobalInt("ttt_detective_hide_special_mode", 0) ~= 0 then
+                    role = ROLE_DETECTIVE
                 end
 
                 roleColour = ROLE_COLORS[role]
@@ -124,7 +124,7 @@ net.Receive("StigRoleOverlayCreateOverlay", function()
                     iconRole = role
                 end
                 -- Reveal fellow traitors as plain traitors until they're searched, when there is a glitch
-            elseif LocalPlayer():GetNWBool("StigRoleOverlayTraitor") and ply:GetNWBool("StigRoleOverlayTraitor") and LocalPlayer():GetRole() ~= ROLE_GLITCH then
+            elseif LocalPlayer():GetNWBool("StigRoleOverlayTraitor") and ply:GetNWBool("StigRoleOverlayTraitor") and not (LocalPlayer().IsGlitch and LocalPlayer():IsGlitch()) then
                 if GetGlobalBool("StigRoleOverlayGlitchExists") then
                     roleColour = ROLE_COLORS[ROLE_TRAITOR]
 
@@ -145,7 +145,7 @@ net.Receive("StigRoleOverlayCreateOverlay", function()
                 if roleIcons then
                     iconRole = ROLE_DETECTIVE
                 end
-            elseif LocalPlayer():GetNWBool("StigRoleOverlayTraitor") and ply:GetNWBool("StigRoleOverlayJester") and LocalPlayer():GetRole() ~= ROLE_GLITCH then
+            elseif LocalPlayer():GetNWBool("StigRoleOverlayTraitor") and ply:GetNWBool("StigRoleOverlayJester") and not (LocalPlayer().IsGlitch and LocalPlayer():IsGlitch()) then
                 -- Reveal jesters only to traitors
                 roleColour = ROLE_COLORS[ply:GetRole()]
 
@@ -172,7 +172,7 @@ net.Receive("StigRoleOverlayCreateOverlay", function()
             end
 
             -- Death X
-            if ply:GetNWInt("StigRoleOverlayScoreboardRoleRevealed", -1) ~= -1 then
+            if ply:GetNWBool("StigRoleOverlayBodyFound") then
                 -- You have to set the font using surface.SetFont() to use surface.GetTextSize(), even though surface.SetFont() is not used for any drawing
                 surface.SetFont("StigRoleOverlayOverlayFont")
                 local textWidth, textHeight = surface.GetTextSize(playerNames[ply])
