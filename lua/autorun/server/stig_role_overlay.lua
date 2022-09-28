@@ -88,7 +88,7 @@ hook.Add("TTTBeginRound", "StigRoleOverlayBegin", function()
             ply:SetNWBool("StigRoleOverlayTraitor", true)
         end
 
-        if ROLE_GLITCH and ply:GetRole() == ROLE_GLITCH then
+        if ply.IsGlitch and ply:IsGlitch() then
             SetGlobalBool("StigRoleOverlayGlitchExists", true)
         end
     end
