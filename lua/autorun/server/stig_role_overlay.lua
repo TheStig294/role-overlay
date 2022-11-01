@@ -138,7 +138,7 @@ hook.Add("PostPlayerDeath", "RoleOverlayDeath", function(ply)
     end
 end)
 
-hook.Add("TTTEndRound", "RoleOverlayEnd", function()
+hook.Add("TTTPrepareRound", "RoleOverlayEnd", function()
     -- Removes all flags set
     for _, ply in ipairs(player.GetAll()) do
         ply:SetNWBool("RoleOverlayIsDetectiveLike", false)
