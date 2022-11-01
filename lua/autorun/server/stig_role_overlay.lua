@@ -1,3 +1,5 @@
+STIG_ROLE_OVERLAY_MOD_INSTALLED = true
+
 local function GetAlivePlayers()
     local alivePlys = {}
 
@@ -62,83 +64,90 @@ local function IsGoodDetectiveLike(ply)
     return role == ROLE_DETECTIVE or (IsDetectiveLike(ply) and IsInnocentTeam(ply))
 end
 
-util.AddNetworkString("StigRoleOverlayPopup")
-util.AddNetworkString("StigRoleOverlayCreateOverlay")
-util.AddNetworkString("StigRoleOverlayEnd")
+local function SetRoleFlags()
+    for _, ply in ipairs(GetAlivePlayers()) do
+        ply:SetNWBool("RoleOverlayIsDetectiveLike", false)
+        ply:SetNWBool("RoleOverlayIsGoodDetectiveLike", false)
+        ply:SetNWBool("RoleOverlayJester", false)
+        ply:SetNWBool("RoleOverlayTraitor", false)
+    end
 
-hook.Add("TTTBeginRound", "StigRoleOverlayBegin", function()
+    for _, ply in ipairs(GetAlivePlayers()) do
+        if IsGoodDetectiveLike(ply) then
+            ply:SetNWBool("RoleOverlayIsGoodDetectiveLike", true)
+            ply:SetNWBool("RoleOverlayIsDetectiveLike", true)
+        elseif IsEvilDetectiveLike(ply) then
+            ply:SetNWBool("RoleOverlayTraitor", true)
+            ply:SetNWBool("RoleOverlayIsDetectiveLike", true)
+        elseif IsDetectiveLike(ply) then
+            ply:SetNWBool("RoleOverlayIsDetectiveLike", true)
+        elseif IsJesterTeam(ply) then
+            ply:SetNWBool("RoleOverlayJester", true)
+        elseif IsTraitorTeam(ply) or ply.IsGlitch and ply:IsGlitch() then
+            ply:SetNWBool("RoleOverlayTraitor", true)
+        end
+
+        if ply.IsGlitch and ply:IsGlitch() then
+            SetGlobalBool("RoleOverlayGlitchExists", true)
+        end
+    end
+end
+
+util.AddNetworkString("RoleOverlayPopup")
+util.AddNetworkString("RoleOverlayEnd")
+
+hook.Add("TTTBeginRound", "RoleOverlayBegin", function()
+    -- Puts the role overlay on the screen for all players
+    net.Start("RoleOverlayPopup")
+    net.Broadcast()
+
     if CR_VERSION then
         SetGlobalInt("ttt_lootgoblin_announce", GetConVar("ttt_lootgoblin_announce"):GetInt())
         SetGlobalInt("ttt_lootgoblin_notify_mode", GetConVar("ttt_lootgoblin_notify_mode"):GetInt())
     end
 
-    -- Sets flags on players using randomat functions only available on the server
-    for _, ply in ipairs(GetAlivePlayers()) do
-        if IsGoodDetectiveLike(ply) then
-            ply:SetNWBool("StigRoleOverlayIsGoodDetectiveLike", true)
-            ply:SetNWBool("StigRoleOverlayIsDetectiveLike", true)
-        elseif IsEvilDetectiveLike(ply) then
-            ply:SetNWBool("StigRoleOverlayTraitor", true)
-            ply:SetNWBool("StigRoleOverlayIsDetectiveLike", true)
-        elseif IsDetectiveLike(ply) then
-            ply:SetNWBool("StigRoleOverlayIsDetectiveLike", true)
-        elseif IsJesterTeam(ply) then
-            ply:SetNWBool("StigRoleOverlayJester", true)
-        elseif IsTraitorTeam(ply) or ply.IsGlitch and ply:IsGlitch() then
-            ply:SetNWBool("StigRoleOverlayTraitor", true)
-        end
+    SetRoleFlags()
 
-        if ply.IsGlitch and ply:IsGlitch() then
-            SetGlobalBool("StigRoleOverlayGlitchExists", true)
-        end
-    end
-
-    -- Starts fading in the role overlay
-    timer.Create("StigRoleOverlayDrawOverlay", 3.031, 1, function()
-        net.Start("StigRoleOverlayCreateOverlay")
-        net.Broadcast()
+    -- Continually checks for players' roles, in case roles change
+    timer.Create("RoleOverlayCheckRoleChange", 1, 0, function()
+        SetRoleFlags()
     end)
 end)
 
 -- Reveals the role of a player when a corpse is searched
-hook.Add("TTTBodyFound", "StigRoleOverlayCorpseSearch", function(_, deadply, rag)
+hook.Add("TTTBodyFound", "RoleOverlayCorpseSearch", function(_, deadply, rag)
     -- If the dead player has disconnected, they won't be on the scoreboard, so skip them
     if not IsPlayer(deadply) then return end
     -- Get the role of the dead player from the ragdoll itself so artificially created ragdolls like the dead ringer aren't given away
-    deadply:SetNWBool("StigRoleOverlayBodyFound", true)
+    deadply:SetNWBool("RoleOverlayCrossName", true)
 end)
 
 -- Reveals the role of a player when a corpse is searched
-hook.Add("TTTCanIdentifyCorpse", "StigRoleOverlayCorpseSearch", function(_, ragdoll)
+hook.Add("TTTCanIdentifyCorpse", "RoleOverlayCorpseSearch", function(_, ragdoll)
     local ply = CORPSE.GetPlayer(ragdoll)
     -- If the dead player has disconnected, they won't be on the scoreboard, so skip them
     if not IsPlayer(ply) then return end
-    ply:SetNWInt("StigRoleOverlayScoreboardRoleRevealed", ragdoll.was_role)
+    ply:SetNWInt("RoleOverlayScoreboardRoleRevealed", ragdoll.was_role)
 end)
 
 -- Reveals the loot goblin's death to everyone if it is announced
-hook.Add("PostPlayerDeath", "StigRoleOverlayDeath", function(ply)
+hook.Add("PostPlayerDeath", "RoleOverlayDeath", function(ply)
     if ply.IsLootGoblin and ply:IsLootGoblin() and ply:IsRoleActive() and GetGlobalInt("ttt_lootgoblin_notify_mode") == 4 then
-        ply:SetNWBool("StigRoleOverlayBodyFound", true)
-        ply:SetNWInt("StigRoleOverlayScoreboardRoleRevealed", ply:GetRole())
+        ply:SetNWBool("RoleOverlayCrossName", true)
+        ply:SetNWInt("RoleOverlayScoreboardRoleRevealed", ply:GetRole())
     end
 end)
 
-hook.Add("TTTEndRound", "StigRoleOverlayEnd", function()
-    -- Removes all popups on the screen
-    timer.Remove("StigRoleOverlayDrawOverlay")
-    net.Start("StigRoleOverlayEnd")
-    net.Broadcast()
-
+hook.Add("TTTEndRound", "RoleOverlayEnd", function()
     -- Removes all flags set
     for _, ply in ipairs(player.GetAll()) do
-        ply:SetNWBool("StigRoleOverlayIsDetectiveLike", false)
-        ply:SetNWBool("StigRoleOverlayIsGoodDetectiveLike", false)
-        ply:SetNWBool("StigRoleOverlayJester", false)
-        ply:SetNWBool("StigRoleOverlayTraitor", false)
-        ply:SetNWInt("StigRoleOverlayScoreboardRoleRevealed", -1)
-        ply:SetNWBool("StigRoleOverlayBodyFound", false)
+        ply:SetNWBool("RoleOverlayIsDetectiveLike", false)
+        ply:SetNWBool("RoleOverlayIsGoodDetectiveLike", false)
+        ply:SetNWBool("RoleOverlayJester", false)
+        ply:SetNWBool("RoleOverlayTraitor", false)
+        ply:SetNWInt("RoleOverlayScoreboardRoleRevealed", -1)
+        ply:SetNWBool("RoleOverlayCrossName", false)
     end
 
-    SetGlobalBool("StigRoleOverlayGlitchExists", false)
+    SetGlobalBool("RoleOverlayGlitchExists", false)
 end)
