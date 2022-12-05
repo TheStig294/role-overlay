@@ -97,16 +97,15 @@ util.AddNetworkString("RoleOverlayPopup")
 util.AddNetworkString("RoleOverlayEnd")
 
 hook.Add("TTTBeginRound", "RoleOverlayBegin", function()
-    -- Puts the role overlay on the screen for all players
-    net.Start("RoleOverlayPopup")
-    net.Broadcast()
-
     if CR_VERSION then
         SetGlobalInt("ttt_lootgoblin_announce", GetConVar("ttt_lootgoblin_announce"):GetInt())
         SetGlobalInt("ttt_lootgoblin_notify_mode", GetConVar("ttt_lootgoblin_notify_mode"):GetInt())
     end
 
     SetRoleFlags()
+    -- Puts the role overlay on the screen for all players
+    net.Start("RoleOverlayPopup")
+    net.Broadcast()
 
     -- Continually checks for players' roles, in case roles change
     timer.Create("RoleOverlayCheckRoleChange", 1, 0, function()

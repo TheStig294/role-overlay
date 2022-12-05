@@ -187,9 +187,11 @@ local function CreateOverlay()
     local boxWidthsCalculated = false
 
     timer.Simple(0.1, function()
-        if not overlayToggle then return end
         CalculateBoxWidths()
-        boxWidthsCalculated = true
+
+        timer.Simple(1, function()
+            boxWidthsCalculated = true
+        end)
     end)
 
     hook.Add("DrawOverlay", "RoleOverlayDrawNameOverlay", function()
