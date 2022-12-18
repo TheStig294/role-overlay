@@ -69,14 +69,16 @@ local function CalculateBoxWidths()
     local screenWidth = ScrW()
     local overlayWidth = 0
 
-    for playerIndex, ply in ipairs(player.GetAll()) do
+    for _, ply in ipairs(player.GetAll()) do
+        if ply:IsSpec() then continue end
         overlayWidth = overlayWidth + boxPadding + boxWidths[ply]
     end
 
     local leftMargin = screenWidth / 2 - overlayWidth / 2
     local boxOffset = 0
 
-    for playerIndex, ply in ipairs(player.GetAll()) do
+    for _, ply in ipairs(player.GetAll()) do
+        if ply:IsSpec() then continue end
         boxOffset = boxOffset + boxWidths[ply] / 2
         overlayPositions[ply] = leftMargin + boxOffset
         boxOffset = boxOffset + boxPadding + boxWidths[ply] / 2
@@ -129,7 +131,9 @@ local function CreateOverlay()
 
     -- Sets all overlay positions to 0, so after the wordboxes are first drawn in the overlay hook, we can get the boxes' width
     for _, ply in ipairs(player.GetAll()) do
-        if not overlayPositions[ply] then
+        if ply:IsSpec() then
+            overlayPositions[ply] = nil
+        elseif not overlayPositions[ply] then
             overlayPositions[ply] = 0
         end
     end
@@ -199,7 +203,7 @@ local function CreateOverlay()
         surface.SetAlphaMultiplier(alpha)
 
         for ply, XPos in SortedPairsByValue(overlayPositions) do
-            if not IsPlayer(ply) then continue end
+            if not IsValid(ply) then continue end
             local roleColour = defaultColour
             local iconRole = nil
 
