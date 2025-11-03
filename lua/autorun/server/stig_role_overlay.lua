@@ -3,7 +3,7 @@ STIG_ROLE_OVERLAY_MOD_INSTALLED = true
 local function GetAlivePlayers()
     local alivePlys = {}
 
-    for _, ply in ipairs(player.GetAll()) do
+    for _, ply in player.Iterator() do
         if ply:Alive() and not ply:IsSpec() then
             table.insert(alivePlys, ply)
         end
@@ -65,13 +65,6 @@ local function IsGoodDetectiveLike(ply)
 end
 
 local function SetRoleFlags()
-    for _, ply in ipairs(GetAlivePlayers()) do
-        ply:SetNWBool("RoleOverlayIsDetectiveLike", false)
-        ply:SetNWBool("RoleOverlayIsGoodDetectiveLike", false)
-        ply:SetNWBool("RoleOverlayJester", false)
-        ply:SetNWBool("RoleOverlayTraitor", false)
-    end
-
     for _, ply in ipairs(GetAlivePlayers()) do
         if IsGoodDetectiveLike(ply) then
             ply:SetNWBool("RoleOverlayIsGoodDetectiveLike", true)
@@ -139,7 +132,7 @@ end)
 
 hook.Add("TTTPrepareRound", "RoleOverlayEnd", function()
     -- Removes all flags set
-    for _, ply in ipairs(player.GetAll()) do
+    for _, ply in player.Iterator() do
         ply:SetNWBool("RoleOverlayIsDetectiveLike", false)
         ply:SetNWBool("RoleOverlayIsGoodDetectiveLike", false)
         ply:SetNWBool("RoleOverlayJester", false)
